@@ -33,3 +33,4 @@ dist/
 episim_build/
 __pycache__/
 .cursor/
+key/

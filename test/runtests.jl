@@ -1,3 +1,6 @@
+using Pkg
+Pkg.add(DataFrames)
+Pkg.add(EpiSim)
 using Test
 using DataFrames
 using EpiSim

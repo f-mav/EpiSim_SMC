@@ -55,7 +55,7 @@ class EpiSim:
     # entrypoint for running EpiSim.jl by the Julia interpreter. Slower startup time, faster to debug code changes
     DEFAULT_INTERPRETER_PATH = ["julia", os.path.join(os.path.dirname(__file__), "run.jl")]
 
-    DEFAULT_BACKEND_ENGINE = 'MMCACovid19'
+    DEFAULT_BACKEND_ENGINE = 'MMCACovid19Vac'
     BACKEND_ENGINES = [
         { 'name': 'MMCACovid19Vac', 'description': 'Model with vaccination' },
         { 'name': 'MMCACovid19', 'description': 'Model without vaccination' }
@@ -137,7 +137,7 @@ class EpiSim:
     def _check_setup(self):
         if not self.setup_complete:
             raise RuntimeError("EpiSim not set up. Call setup() first.")
-        
+
     def step(self, start_date, length_days):
         """
         Run the model for a given number of days starting from a given start date.
@@ -154,122 +154,40 @@ class EpiSim:
                 - str: The next start date after this step.
         """
         self._check_setup()
-
-        # if you want length_days=10 to mean 2023-01-01..2023-01-10 inclusive:
         end_date = date_addition(start_date, length_days - 1)
 
         logger.debug(f"Running model from {start_date} to {end_date}")
 
-        override_config = {
-            "start_date": start_date,
-            "end_date": end_date,
-            # choose what you want here:
-            "save_time_step": -1,  # or an int if you want a specific t
-        }
 
-        # Run model, using current model_state as initial conditions
-        self.run_model(
-            override_config=override_config,
-            override_model_state=self.model_state,
+        self.run_model({
+            length_days:length_days,
+            start_date:start_date,  
+            end_date:end_date,
+            model_state: self.model_state,}
         )
 
-        # Update internal model_state path to the final state of this step
         self.model_state = self.model_state_filename(end_date)
 
-        logger.debug("Step complete")
+        
+
+        logger.debug(f"Step complete")
         return self.model_state, date_addition(end_date, 1)
-    # def step(self, start_date, length_days):
-    #     """
-    #     Run the model for a given number of days starting from a given start date.
-
-    #     This method updates the config and model state, then calls the simulator.
-
-    #     Args:
-    #         start_date (str): Start date for the simulation step (format: 'YYYY-MM-DD').
-    #         length_days (int): Number of days to simulate.
-
-    #     Returns:
-    #         tuple: A tuple containing:
-    #             - str: Path to the updated model state file.
-    #             - str: The next start date after this step.
-    #     """
-    #     self._check_setup()
-    #     end_date = date_addition(start_date, length_days - 1)
-
-    #     logger.debug(f"Running model from {start_date} to {end_date}")
-    #     self.run_model(
-    #         length_days=length_days,
-    #         start_date=start_date,
-    #         end_date=end_date,
-    #         model_state=self.model_state,
-    #     )
-
-    #     self.model_state = self.model_state_filename(end_date)
-
-    #     logger.debug(f"Step complete")
-    #     return self.model_state, date_addition(end_date, 1)
 
     def update_config(self, config):
         self.config_path = self.handle_config_input(self.model_state_folder, config)
 
-    # def run_model(self, override_config=None, override_model_state=None):
-    #     """
-    #     Run the compiled model for a specific time period.
-
-    #     Args:
-    #         length_days (int): Number of days to simulate.
-    #         start_date (str): Start date for the simulation (format: 'YYYY-MM-DD').
-    #         end_date (str): End date for the simulation (format: 'YYYY-MM-DD').
-    #         model_state (str, optional): Path to the initial model state file.
-
-    #     Returns:
-    #         str: Output from the model execution.
-
-    #     Raises:
-    #         RuntimeError: If the model execution fails.
-    #     """
-    #     self._check_setup()
-
-    #     cmd = list(self.executable_path)
-    #     cmd.extend(["-e", self.backend_engine, "run"])  # Use the selected backend engine
-    #     cmd.extend(["--config", self.config_path])
-    #     cmd.extend(["--data-folder", self.data_folder])
-    #     cmd.extend(["--instance-folder", self.model_state_folder])
-
-    #     if override_model_state:
-    #         cmd.extend(["--initial-conditions", override_model_state])
-
-    #     if override_config and isinstance(override_config, dict):
-    #         if override_config['save_time_step']:
-    #             # save the model state at a specific time step
-    #             cmd.extend(["--export-compartments-time-t", str(override_config['save_time_step'])])
-    #         if override_config['start_date']:
-    #             cmd.extend(["--start-date", override_config['start_date']])
-    #         if override_config['end_date']:
-    #             cmd.extend(["--end-date", override_config['end_date']])
-
-    #     cmdstr = " ".join(cmd)
-    #     logger.debug(f"Running command:\n{cmdstr}")
-    #     with open('episimlogs.txt', 'w') as log_file:
-    #         result = subprocess.run(cmd, stdout=log_file, stderr=subprocess.STDOUT, text=True)
-
-    #     if result.returncode != 0:
-    #         raise RuntimeError(f"Model execution failed: {result.stdout}")
-
-    #     return self.uuid, result.stdout
     def run_model(self, override_config=None, override_model_state=None):
         """
         Run the compiled model for a specific time period.
 
         Args:
-            override_config (dict, optional): Dict with optional keys:
-                - "start_date"
-                - "end_date"
-                - "save_time_step" (int, >=0 for a specific t)
-            override_model_state (str, optional): Path to the initial model state file.
+            length_days (int): Number of days to simulate.
+            start_date (str): Start date for the simulation (format: 'YYYY-MM-DD').
+            end_date (str): End date for the simulation (format: 'YYYY-MM-DD').
+            model_state (str, optional): Path to the initial model state file.
 
         Returns:
-            tuple: (uuid, log_output)
+            str: Output from the model execution.
 
         Raises:
             RuntimeError: If the model execution fails.
@@ -277,57 +195,35 @@ class EpiSim:
         self._check_setup()
 
         cmd = list(self.executable_path)
-
-        # Only compiled binary understands "-e ENGINE"
-        if self.executable_type == "compiled":
-            cmd.extend(["-e", self.backend_engine])
-
-        # Both compiled & interpreter use the "run" subcommand
-        cmd.append("run")
-
+        cmd.extend(["-e", self.backend_engine, "run"])  # Use the selected backend engine
         cmd.extend(["--config", self.config_path])
         cmd.extend(["--data-folder", self.data_folder])
         cmd.extend(["--instance-folder", self.model_state_folder])
 
         if override_model_state:
-            cmd.extend(["--initial-condition", override_model_state])
+            cmd.extend(["--initial-conditions", override_model_state])
 
-        # Build overrides safely
         if override_config and isinstance(override_config, dict):
-            save_ts = override_config.get("save_time_step", None)
-            if save_ts is not None and save_ts >= 0:
-                cmd.extend(["--export-compartments-time-t", str(save_ts)])
-
-            start_date = override_config.get("start_date", None)
-            if start_date is not None:
-                cmd.extend(["--start-date", start_date])
-
-            end_date = override_config.get("end_date", None)
-            if end_date is not None:
-                cmd.extend(["--end-date", end_date])
+            if override_config['save_time_step']:
+                # save the model state at a specific time step
+                cmd.extend(["--export-compartments-time-t", str(override_config['save_time_step'])])
+            if override_config['start_date']:
+                cmd.extend(["--start-date", override_config['start_date']])
+            if override_config['end_date']:
+                cmd.extend(["--end-date", override_config['end_date']])
 
         cmdstr = " ".join(cmd)
         logger.debug(f"Running command:\n{cmdstr}")
-
-        log_path = os.path.join(self.model_state_folder, "episimlogs.txt")
-        with open(log_path, 'w+') as log_file:
+        with open('episimlogs.txt', 'w') as log_file:
             result = subprocess.run(cmd, stdout=log_file, stderr=subprocess.STDOUT, text=True)
-            log_file.seek(0)
-            log_content = log_file.read()
 
         if result.returncode != 0:
-            raise RuntimeError(
-                f"Model execution failed with exit code {result.returncode}.\n"
-                f"Command:\n{cmdstr}\n\n"
-                f"Log output:\n{log_content}"
-            )
+            raise RuntimeError(f"Model execution failed: {result.stdout}")
 
-        return self.uuid, log_content
-
-
+        return self.uuid, result.stdout
 
     def model_state_filename(self, end_date):
-        return os.path.join(self.model_state_folder, "output", f"compartments_t_{end_date}.nc")
+        return os.path.join(self.model_state_folder, "output", f"compartments_t_{end_date}.h5")
 
     def update_model_state(self, end_date):
         self.model_state = self.model_state_filename(end_date)
@@ -398,39 +294,13 @@ def pardir(): return os.path.join(os.path.dirname(__file__), "..")
 # example usage
 ######################
 
-# def run_model_example():
-#     executable_path = os.path.join(pardir(), "episim")
-
-#     initial_conditions = os.path.join(pardir(), "models/mitma/initial_conditions_MMCACovid19.nc")
-
-#     # read the config file sample to dict
-#     with open(os.path.join(pardir(), "models/mitma/config_MMCACovid19.json"), 'r') as f:
-#         config = json.load(f)
-    
-#     data_folder = os.path.join(pardir(), "models/mitma")
-#     instance_folder = os.path.join(pardir(), "runs")
-
-#     model = EpiSim(
-#         config, data_folder, instance_folder, initial_conditions
-#     )
-    
-#     # Set up with compiled executable
-#     # model.setup(executable_type='compiled', executable_path=os.path.join(pardir(), "episim"))
-    
-#     # Or set up with Julia interpreter
-#     model.setup(executable_type='interpreter', executable_path=os.path.join(pardir(), "run.jl"))
-
-#     logger.info("Running")
-#     output = model.run_model(length_days=1, start_date="2023-01-01", end_date="2023-01-02")
-#     logger.info(output)
-#     logger.info("Example done")
 def run_model_example():
     executable_path = os.path.join(pardir(), "episim")
 
-    initial_conditions = os.path.join(pardir(), "models/mitma/initial_conditions_MMCACovid19.nc")
+    initial_conditions = os.path.join(pardir(), "models/mitma/initial_conditions.nc")
 
     # read the config file sample to dict
-    with open(os.path.join(pardir(), "models/mitma/config_MMCACovid19.json"), 'r') as f:
+    with open(os.path.join(pardir(), "models/mitma/config.json"), 'r') as f:
         config = json.load(f)
     
     data_folder = os.path.join(pardir(), "models/mitma")
@@ -447,34 +317,23 @@ def run_model_example():
     model.setup(executable_type='interpreter', executable_path=os.path.join(pardir(), "run.jl"))
 
     logger.info("Running")
-
-    override_config = {
-        "start_date": "2023-01-01",
-        "end_date":   "2023-01-02",
-        "save_time_step": -1,   # or a specific t if you want
-    }
-
-    uuid, output = model.run_model(
-        override_config=override_config,
-        override_model_state=model.model_state,   # use the initial_conditions we set
-    )
-
-    logger.info(f"Run UUID: {uuid}")
+    output = model.run_model(length_days=1, start_date="2023-01-01", end_date="2023-01-02")
+    logger.info(output)
     logger.info("Example done")
 
 def agent_flow_example():
     "Run steps and update the policy"
     executable_path = os.path.join(pardir(), "episim")
 
-    initial_conditions = os.path.join(pardir(), "models/mitma/initial_conditions_seeds.csv")
+    initial_conditions = os.path.join(pardir(), "models/mitma/initial_conditions.nc")
 
     # read the config file sample to dict
-    with open(os.path.join(pardir(), "models/mitma/config_MMCACovid19.json"), 'r') as f:
+    with open(os.path.join(pardir(), "models/mitma/config.json"), 'r') as f:
         config = json.load(f)
 
     data_folder = os.path.join(pardir(), "models/mitma")
     instance_folder = os.path.join(pardir(), "runs")
-
+    
     model = EpiSim(
         config, data_folder, instance_folder, initial_conditions
     )
@@ -505,6 +364,5 @@ def agent_flow_example():
     logger.info("Example done")
 
 
-if __name__ == "_main_":
-    # agent_flow_example()
-    run_model_example()
+if __name__ == "__main__":
+    agent_flow_example()

@@ -1,0 +1,3 @@
+  Activating project at `~/EpiSim.jl`
+unrecognized option -e
+usage: run.jl {run|setup|init}

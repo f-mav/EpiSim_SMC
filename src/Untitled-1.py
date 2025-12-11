@@ -23,7 +23,7 @@ import pandas as pd
 import uuid
 import shutil
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(_name_)
 logger.setLevel(logging.DEBUG)
 
 logger.addHandler(logging.StreamHandler(sys.stdout))
@@ -51,9 +51,9 @@ class EpiSim:
     """
 
     # location of the compiled EpiSim.jl
-    DEFAULT_EXECUTABLE_PATH = os.path.join(os.path.dirname(__file__), os.pardir, "episim")
+    DEFAULT_EXECUTABLE_PATH = os.path.join(os.path.dirname(_file_), os.pardir, "episim")
     # entrypoint for running EpiSim.jl by the Julia interpreter. Slower startup time, faster to debug code changes
-    DEFAULT_INTERPRETER_PATH = ["julia", os.path.join(os.path.dirname(__file__), "run.jl")]
+    DEFAULT_INTERPRETER_PATH = ["julia", os.path.join(os.path.dirname(_file_), "run.jl")]
 
     DEFAULT_BACKEND_ENGINE = 'MMCACovid19'
     BACKEND_ENGINES = [
@@ -327,7 +327,7 @@ class EpiSim:
 
 
     def model_state_filename(self, end_date):
-        return os.path.join(self.model_state_folder, "output", f"compartments_t_{end_date}.nc")
+        return os.path.join(self.model_state_folder, "output", f"compartments_t_{end_date}.h5")
 
     def update_model_state(self, end_date):
         self.model_state = self.model_state_filename(end_date)
@@ -391,7 +391,7 @@ def date_addition(start_date, length_days):
     end = start + pd.Timedelta(days=length_days)
     return end.strftime('%Y-%m-%d')
 
-def pardir(): return os.path.join(os.path.dirname(__file__), "..")
+def pardir(): return os.path.join(os.path.dirname(_file_), "..")
 
 
 ######################
@@ -427,7 +427,7 @@ def pardir(): return os.path.join(os.path.dirname(__file__), "..")
 def run_model_example():
     executable_path = os.path.join(pardir(), "episim")
 
-    initial_conditions = os.path.join(pardir(), "models/mitma/initial_conditions_MMCACovid19.nc")
+    initial_conditions = os.path.join(pardir(), "models/mitma/A0_initial_conditions_seeds.csv")
 
     # read the config file sample to dict
     with open(os.path.join(pardir(), "models/mitma/config_MMCACovid19.json"), 'r') as f:
@@ -466,7 +466,7 @@ def agent_flow_example():
     "Run steps and update the policy"
     executable_path = os.path.join(pardir(), "episim")
 
-    initial_conditions = os.path.join(pardir(), "models/mitma/initial_conditions_seeds.csv")
+    initial_conditions = os.path.join(pardir(), "models/mitma/A0_initial_conditions_seeds.csv")
 
     # read the config file sample to dict
     with open(os.path.join(pardir(), "models/mitma/config_MMCACovid19.json"), 'r') as f:
@@ -505,6 +505,6 @@ def agent_flow_example():
     logger.info("Example done")
 
 
-if __name__ == "_main_":
+if _name_ == "_main_":
     # agent_flow_example()
     run_model_example()
